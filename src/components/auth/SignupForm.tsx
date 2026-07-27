@@ -40,9 +40,14 @@ export function SignupForm() {
 
     try {
       const supabase = createClient();
-      const { error: authError } = await supabase.auth.signUp({
+      const { data, error: authError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          // 확인 메일의 링크가 돌아올 곳. 지정하지 않으면 Site URL 루트로 돌아오는데,
+          // 루트에는 ?code= 를 세션으로 교환할 핸들러가 없어 로그인이 되지 않는다.
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
       });
 
       if (authError) {
@@ -54,18 +59,12 @@ export function SignupForm() {
         return;
       }
 
-      // Since email confirmation may not be required, try to sign in immediately
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (signInError) {
-        // If sign in fails, email confirmation is likely required
-        setSuccess(true);
-      } else {
+      // 이메일 확인이 필요한 설정이면 session 이 null 로 온다.
+      if (data.session) {
         router.push("/");
         router.refresh();
+      } else {
+        setSuccess(true);
       }
     } catch {
       setError("회원가입 중 오류가 발생했습니다.");
